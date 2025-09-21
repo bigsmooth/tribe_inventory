@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Dashboard</h1>
+<p>Welcome! This is your Zoho-lite home screen.</p>
+<h3>Recent Inventory</h3>
+<table><tr><th>Hub</th><th>SKU</th><th>Qty</th></tr>
+{% for row in recent %}
+<tr><td>{{ row.hub.name }}</td><td>{{ row.sku.sku }} — {{ row.sku.name }}</td><td>{{ row.qty }}</td></tr>
+{% empty %}<tr><td colspan="3">No inventory yet.</td></tr>{% endfor %}
+</table>
+{% endblock %}
