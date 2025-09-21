@@ -18,6 +18,6 @@ def home(request):
 
 
 def logout_get(request):
-    """Allow logging out via simple GET, then redirect to login."""
+    """Allow logging out via GET, then redirect to login."""
     logout(request)
     return redirect("login")
