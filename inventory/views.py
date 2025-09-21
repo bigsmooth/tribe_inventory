@@ -9,3 +9,10 @@ def healthcheck(request): return HttpResponse("ok")
 def home(request):
     recent = Inventory.objects.select_related('hub','sku').all()[:10]
     return render(request, 'home.html', {'recent': recent})
+from django.contrib.auth import logout
+from django.shortcuts import redirect
+
+def logout_get(request):
+    """Allow logging out via simple GET, then redirect to login."""
+    logout(request)
+    return redirect('login')
