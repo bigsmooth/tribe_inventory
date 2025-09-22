@@ -4,31 +4,67 @@
 
   <!-- Friendly greeting -->
   <p><strong>{{ welcome }}</strong></p>
+  <p>
+    {{ emojis.socks }}
+    <strong>{{ user.username|capfirst }}</strong> •
+    Role: <strong>{{ role_label }}</strong> •
+    Hub: <strong>{{ hub_display }}</strong>
+  </p>
 
-  <!-- Simple meta -->
-  <p>Role: {% if user.role %}{{ user.role }}{% else %}Unassigned{% endif %}</p>
-  <p>Last login: {{ user.last_login }}</p>
+  <!-- Encouragement / Context -->
+  <p>Today is {{ today|date:"l, F j, Y" }}.</p>
+  <p>{{ friendly_msg }}</p>
+  <p><em>{{ rotating_quote }}</em></p>
 
-  <!-- Quick stats for the hubs this user can see -->
+  <hr>
+
+  <!-- Quick stats -->
   <h3>Quick Stats</h3>
   <ul>
-    <li>Total SKUs: {{ total_skus }}</li>
-    <li>Total Units: {{ total_qty }}</li>
+    <li>Total SKUs: {{ total_skus|default:"0" }}</li>
+    <li>Total Units: {{ total_qty|default:"0" }}</li>
   </ul>
 
-  <!-- List of hubs the user can see/manage -->
-  <h3>Your Hubs</h3>
-  <ul>
-    {% for hub in hubs %}
-      <li>{{ hub.name }}</li>
-    {% empty %}
-      <li>No hubs assigned</li>
-    {% endfor %}
-  </ul>
+  {% if low_stock %}
+    <h4>⚠️ Low Stock (under {{ low_stock_threshold }})</h4>
+    <ul>
+      {% for row in low_stock %}
+        <li>
+          <span style="color:red;"><strong>{{ row.sku }}</strong></span>
+          → {{ row.qty }} units
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
 
-  <!-- Recent inventory teaser (global) -->
+  <hr>
+
+  <!-- Recent actions -->
+  <h3>Recent Actions</h3>
+  {% if recent_logs %}
+    <table border="1" cellpadding="6">
+      <thead><tr><th>When</th><th>Hub</th><th>SKU</th><th>Change</th><th>By</th></tr></thead>
+      <tbody>
+        {% for log in recent_logs %}
+          <tr>
+            <td>{{ log.created_at }}</td>
+            <td>{{ log.hub.name }}</td>
+            <td>{{ log.sku.sku }}</td>
+            <td>{{ log.change }}</td>
+            <td>{{ log.user.username }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No updates yet, add your first entry!</p>
+  {% endif %}
+
+  <hr>
+
+  <!-- Recent inventory teaser (still handy) -->
   <h3>Recent Inventory</h3>
-  <table>
+  <table border="1" cellpadding="5">
     <thead>
       <tr><th>Hub</th><th>SKU</th><th>Qty</th></tr>
     </thead>
@@ -36,7 +72,7 @@
       {% for item in recent %}
         <tr>
           <td>{{ item.hub.name }}</td>
-          <td>{{ item.sku }}</td>
+          <td>{{ item.sku.sku }}</td>
           <td>{{ item.qty }}</td>
         </tr>
       {% empty %}
@@ -46,6 +82,6 @@
   </table>
 
   <p style="margin-top: 20px;">
-    <em>Let’s crush it today, {{ user.username|capfirst }} 🚀</em>
+    <em>Let’s crush it today, {{ user.username|capfirst }} {{ emojis.rocket }}</em>
   </p>
 {% endblock %}

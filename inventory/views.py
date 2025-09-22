@@ -7,17 +7,20 @@ from django.core.exceptions import PermissionDenied
 from django.http import HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 
-import csv
 from django.utils.timezone import now
+from django.db.models import Sum, Count
+
+import csv
+import math
 
 from .models import (
     Inventory, InventoryLog, Hub, SKU,
     Shipment, ShipmentLine,
 )
 from .services import adjust_stock
-from .utils import get_visible_hubs          # make sure you created inventory/utils.py with get_visible_hubs
-from .receiving import receive_shipment      # if you added receiving.py per earlier step
-from .forms import AdjustStockForm           # make sure inventory/forms.py exists per earlier step
+from .utils import get_visible_hubs          # make sure inventory/utils.py exists
+from .receiving import receive_shipment      # make sure inventory/receiving.py exists
+from .forms import AdjustStockForm           # make sure inventory/forms.py exists
 
 
 # ------------------------
@@ -26,8 +29,11 @@ from .forms import AdjustStockForm           # make sure inventory/forms.py exis
 
 def require_role(*roles):
     """
-    Decorator to allow only certain roles.
-    Superusers (Kevin) bypass checks.
+    Allow only certain roles. Superusers (Kevin) bypass checks.
+    Usage:
+      @require_role("HUB")
+      def some_view(...):
+          ...
     """
     def deco(view):
         def wrapper(request, *args, **kwargs):
@@ -41,24 +47,136 @@ def require_role(*roles):
 
 
 # ------------------------
-# Health & Home
+# Health & Auth
 # ------------------------
 
 def healthcheck(request):
     return HttpResponse("ok")
 
 
-@login_required
-def home(request):
-    """Simple dashboard: show recent inventory rows."""
-    recent = Inventory.objects.select_related("hub", "sku").all()[:10]
-    return render(request, "home.html", {"recent": recent})
-
-
 def logout_get(request):
     """Allow logging out via GET, then redirect to login."""
     logout(request)
     return redirect("login")
+
+
+# ------------------------
+# Home / Dashboard (KISS)
+# ------------------------
+
+@login_required
+def home(request):
+    """
+    Friendly, simple dashboard:
+      ✅ User Greeting Block (name, role, hub name, emoji)
+      ✅ Quick Stats (SKUs, total qty, low-stock alerts)
+      ✅ Encouragement / Context (today, friendly message, rotating quote)
+      ✅ Recent Actions (last 3 inventory changes in user-visible hubs)
+    """
+    user = request.user
+    visible_hubs = get_visible_hubs(user)  # queryset (may be empty)
+
+    # --- Role label ---
+    role_label = "Admin" if user.is_superuser else (
+        getattr(user, "role", None) or "Hub Manager"
+    )
+
+    # --- Hub display (single hub gets nice label, multi -> list) ---
+    hub_names = list(visible_hubs.values_list("name", flat=True))
+    if len(hub_names) == 1:
+        hub_display = hub_names[0]  # e.g., "Hub 3 – California"
+    elif len(hub_names) > 1:
+        hub_display = ", ".join(hub_names)
+    else:
+        hub_display = "No hub assigned"
+
+    # --- Emojis (fun) ---
+    emojis = {"box": "📦", "truck": "🚚", "socks": "🧦", "rocket": "🚀", "strong": "💪"}
+
+    # --- Date / friendly message / rotating quote ---
+    today = now()  # timezone-aware
+    friendly_msg = f"Keep the socks moving, {emojis['rocket']} {user.username.capitalize()}! Your hub is the heartbeat of TTT."
+    quotes = [
+        f"Thick Thigh Tribe Strong {emojis['strong']}",
+        f"Small steps, big stacks {emojis['box']}",
+        f"Move smart, move steady {emojis['truck']}",
+        f"Inventory zen: fewer surprises, more {emojis['socks']}",
+    ]
+    # rotate quote by day of year
+    day_index = int(today.strftime("%j"))
+    rotating_quote = quotes[day_index % len(quotes)]
+
+    # --- Scoped inventory queryset (only hubs the user can see; admin sees all) ---
+    inv_qs = Inventory.objects.select_related("hub", "sku")
+    if not user.is_superuser:
+        if visible_hubs.exists():
+            inv_qs = inv_qs.filter(hub__in=visible_hubs)
+        else:
+            inv_qs = inv_qs.none()
+
+    # --- Quick stats ---
+    # SKUs assigned (distinct by SKU across scope)
+    total_skus = inv_qs.values("sku").distinct().count()
+
+    # Total stock on hand (sum of qty across scope)
+    total_qty = inv_qs.aggregate(total=Sum("qty"))["total"] or 0
+
+    # Low stock alerts (aggregate by SKU across scope)
+    LOW_STOCK_THRESHOLD = 10
+    low_stock_rows = (
+        inv_qs.values("sku__sku")
+             .annotate(total=Sum("qty"))
+             .filter(total__lt=LOW_STOCK_THRESHOLD)
+             .order_by("total")[:10]
+    )
+    low_stock = [{"sku": r["sku__sku"], "qty": r["total"] or 0} for r in low_stock_rows]
+
+    # --- Recent actions (always show last 3 in scope) ---
+    logs_qs = InventoryLog.objects.select_related("user", "hub", "sku").order_by("-created_at")
+    if not user.is_superuser:
+        if visible_hubs.exists():
+            logs_qs = logs_qs.filter(hub__in=visible_hubs)
+        else:
+            logs_qs = logs_qs.none()
+    recent_logs = list(logs_qs[:3])
+
+    # --- Friendly welcome line ---
+    welcome = f"Welcome {user.username.capitalize()}! {emojis['socks']}  "
+    if visible_hubs.exists():
+        welcome += f"You’re managing: {hub_display}."
+    else:
+        welcome += "You don’t have a hub assigned yet."
+
+    # --- A short recent inventory peek (global scope teaser – keep for consistency) ---
+    recent_inventory = inv_qs.order_by("-id")[:10]
+
+    ctx = {
+        # greeting block
+        "welcome": welcome,
+        "role_label": role_label,
+        "hub_display": hub_display,
+        "emojis": emojis,
+
+        # stats
+        "total_skus": total_skus,
+        "total_qty": total_qty,
+        "low_stock": low_stock,
+        "low_stock_threshold": LOW_STOCK_THRESHOLD,
+
+        # encouragement / context
+        "today": today,
+        "friendly_msg": friendly_msg,
+        "rotating_quote": rotating_quote,
+
+        # recent activity
+        "recent_logs": recent_logs,
+
+        # existing fields for the rest of the page
+        "user": user,
+        "hubs": visible_hubs,
+        "recent": recent_inventory,
+    }
+    return render(request, "home.html", ctx)
 
 
 # ------------------------
