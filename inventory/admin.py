@@ -41,7 +41,7 @@ class SKUAdmin(admin.ModelAdmin):
         ]
         return my_urls + urls
 
-    def upload_csv(self, request):
+        def upload_csv(self, request):
         """
         Admin view to upload SKUs via CSV.
         Expected columns (header row optional but recommended):
@@ -50,22 +50,22 @@ class SKUAdmin(admin.ModelAdmin):
         if request.method == "POST":
             f = request.FILES.get("file")
             if not f:
-                messages.error(request, "Please choose a CSV file to upload.")
+                self.message_user(request, "Please choose a CSV file to upload.", level=messages.ERROR)
                 return redirect("admin:inventory_sku_changelist")
 
             # Read CSV
+            import csv, io
             try:
                 txt = io.TextIOWrapper(f.file, encoding="utf-8")
                 reader = csv.DictReader(txt)
             except Exception as e:
-                messages.error(request, f"Could not read CSV: {e}")
+                self.message_user(request, f"Could not read CSV: {e}", level=messages.ERROR)
                 return redirect("admin:inventory_sku_changelist")
 
-            created = 0
-            updated = 0
-            errors = 0
+            from .models import SKU
+            created = updated = errors = 0
 
-            for idx, row in enumerate(reader, start=2):  # start=2 to account for header as row 1
+            for idx, row in enumerate(reader, start=2):  # start=2 => header is row 1
                 try:
                     sku_code = (row.get("sku") or "").strip()
                     name = (row.get("name") or "").strip()
@@ -79,11 +79,7 @@ class SKUAdmin(admin.ModelAdmin):
 
                     obj, is_created = SKU.objects.update_or_create(
                         sku=sku_code,
-                        defaults={
-                            "name": name,
-                            "barcode": barcode,
-                            "low_stock_threshold": low,
-                        },
+                        defaults={"name": name, "barcode": barcode, "low_stock_threshold": low},
                     )
                     if is_created:
                         created += 1
@@ -93,16 +89,37 @@ class SKUAdmin(admin.ModelAdmin):
                     errors += 1
 
             if created or updated:
-                messages.success(
+                self.message_user(
                     request,
-                    f"CSV processed. Created: {created}, Updated: {updated}. "
-                    + (f"Errors: {errors}." if errors else "")
+                    f"CSV processed. Created: {created}, Updated: {updated}. " + (f"Errors: {errors}." if errors else ""),
+                    level=messages.SUCCESS,
                 )
             else:
-                messages.warning(
+                self.message_user(
                     request,
-                    "No SKUs were created or updated. Check your CSV headers/rows."
+                    "No SKUs were created or updated. Check your CSV headers/rows.",
+                    level=messages.WARNING,
                 )
+            return redirect("admin:inventory_sku_changelist")
+
+        # GET -> inline minimal form (no template needed)
+        return HttpResponse(
+            """
+            <div style="padding:20px;font-family:system-ui,Arial,sans-serif">
+              <h1>Upload SKUs CSV</h1>
+              <p>Expected columns: <code>sku,name,barcode,low_stock_threshold</code></p>
+              <form method="post" enctype="multipart/form-data" style="margin-top:12px">
+                """ + (f"{csrf}" if False else "") + """
+                <input type="hidden" name="csrfmiddlewaretoken" value='""" + getattr(request, "csrf_processing_done", "").__class__.__name__ + """'>
+                <input type="file" name="file" accept=".csv" required>
+                <button type="submit" style="margin-left:8px;">Upload</button>
+                <a href="/admin/inventory/sku/" style="margin-left:8px;">Cancel</a>
+              </form>
+            </div>
+            """,
+            content_type="text/html",
+        )
+
             return redirect("admin:inventory_sku_changelist")
 
         # GET – render a tiny upload form within admin chrome
