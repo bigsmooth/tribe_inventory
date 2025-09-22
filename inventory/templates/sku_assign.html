@@ -1,20 +1,17 @@
 {% extends "base.html" %}
-{% block title %}Assign Hubs — {{ sku.sku }}{% endblock %}
 {% block content %}
-<h2>Assign Hubs</h2>
-<p class="text-muted mb-2"><strong>{{ sku.sku }}</strong> — {{ sku.name }}</p>
+<h2>Assign SKU: {{ sku.sku }} — {{ sku.name }}</h2>
 
-<form method="post" class="mb-3">
+<form method="post">
   {% csrf_token %}
-  <div class="mb-3">
-    {{ form.hubs }}
-  </div>
-  <button class="btn btn-primary">Save</button>
-  <a class="btn btn-secondary" href="{% url 'skus_by_hub' %}">Back</a>
-</form>
+  <label>Hub:</label>
+  <select name="hub_id">
+    {% for h in hubs %}
+      <option value="{{ h.id }}" {% if h.id in assigned_ids %}selected{% endif %}>{{ h.name }}</option>
+    {% endfor %}
+  </select>
 
-<div class="small text-muted">
-  Tip: This page updates both the hub links and the SKU’s many-to-many field.<br>
-  You can also maintain per-hub flags (like reorder points) later in Admin via <em>Hubs ↔ SKUs</em>.
-</div>
+  <button name="action" value="assign" type="submit">Assign</button>
+  <button name="action" value="unassign" type="submit">Unassign</button>
+</form>
 {% endblock %}

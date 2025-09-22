@@ -1,33 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Upload SKUs (CSV){% endblock %}
 {% block content %}
-<h2 class="mb-3">Upload SKUs (CSV)</h2>
-<p class="text-muted">Headers: <code>sku,name,barcode,low_stock_threshold,hubs</code></p>
-
-<form method="post" enctype="multipart/form-data" class="mb-3">
+<h2>Upload SKUs (CSV)</h2>
+<form method="post" enctype="multipart/form-data">
   {% csrf_token %}
-  <div class="mb-2">
-    {{ form.file.label_tag }}<br>
-    {{ form.file }}
-    <div class="text-muted small">{{ form.file.help_text }}</div>
-  </div>
-
-  <div class="mb-2">
-    <label>{{ form.clear_assignments }} Clear existing hub assignments first</label>
-  </div>
-
-  <div class="mb-3">
-    {{ form.default_threshold.label_tag }}<br>
-    {{ form.default_threshold }}
-    <div class="text-muted small">Default used if column is missing/blank</div>
-  </div>
-
-  <button class="btn btn-primary">Import</button>
-  <a class="btn btn-secondary" href="{% url 'skus_by_hub' %}">Back</a>
+  <input type="file" name="file" accept=".csv" required>
+  <button type="submit">Upload</button>
 </form>
-
-<div class="card p-2">
-  <strong>Example row</strong>
-  <pre class="mb-0">SOCK-001,Classic Crew - Black,123456789012,10,Hub 1 (Stafford, VA), Hub 3 (California)</pre>
-</div>
+<p>CSV headers: <code>sku,name,barcode,low_stock_threshold</code></p>
 {% endblock %}

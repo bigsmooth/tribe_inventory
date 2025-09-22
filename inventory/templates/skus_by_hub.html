@@ -1,51 +1,34 @@
 {% extends "base.html" %}
-{% block title %}SKUs by Hub{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h2 class="mb-0">SKUs by Hub</h2>
-  <div>
-    <a href="{% url 'skus_upload' %}" class="btn btn-sm btn-outline-primary">Upload CSV</a>
-  </div>
-</div>
+<h2>SKUs by Hub</h2>
 
-<form method="get" action="{% url 'skus_by_hub' %}" class="mb-3 d-flex gap-2">
-  {{ filter_form.hub }}
-  <button class="btn btn-secondary">Go</button>
+<form method="get" action="{% url 'skus_by_hub' %}">
+  <label>Hub:</label>
+  <select name="hub" onchange="if(this.value){window.location='{% url 'skus_by_hub_detail' 0 %}'.replace('/0/','/'+this.value+'/');}">
+    {% for h in hubs %}
+      <option value="{{h.id}}" {% if hub and h.id == hub.id %}selected{% endif %}>{{h.name}}</option>
+    {% endfor %}
+  </select>
 </form>
 
 {% if hub %}
-  <h4 class="mt-2">Hub: {{ hub.name }}</h4>
-  <p class="text-muted">Total SKUs: {{ totals.sku_count }}</p>
-
-  {% if rows %}
-    <table class="table table-sm align-middle">
-      <thead>
-        <tr><th>SKU</th><th>Name</th><th></th></tr>
-      </thead>
-      <tbody>
-        {% for sku in rows %}
-          <tr>
-            <td><code>{{ sku.sku }}</code></td>
-            <td>{{ sku.name }}</td>
-            <td class="text-end">
-              <a class="btn btn-sm btn-outline-secondary" href="{% url 'sku_assign' sku.id %}">Assign hubs</a>
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
+  <h3>{{ hub.name }}</h3>
+  {% if assignments %}
+    <table>
+      <tr><th>SKU</th><th>Name</th><th>Assigned?</th><th></th></tr>
+      {% for a in assignments %}
+        <tr>
+          <td>{{ a.sku.sku }}</td>
+          <td>{{ a.sku.name }}</td>
+          <td>Yes</td>
+          <td><a href="{% url 'sku_assign' a.sku.id %}">Manage</a></td>
+        </tr>
+      {% endfor %}
     </table>
   {% else %}
-    <div class="alert alert-info">No SKUs assigned to this hub yet.</div>
+    <p>No SKUs assigned yet.</p>
   {% endif %}
 {% else %}
-  <div class="alert alert-secondary">Choose a hub to view assigned SKUs.</div>
-  <ul class="list-group">
-    {% for h in hubs %}
-      <li class="list-group-item d-flex justify-content-between align-items-center">
-        <span>{{ h.name }}{% if h.city %} — <span class="text-muted">{{ h.city }}</span>{% endif %}</span>
-        <a class="btn btn-sm btn-outline-primary" href="{% url 'skus_by_hub_detail' h.id %}">Open</a>
-      </li>
-    {% endfor %}
-  </ul>
+  <p>No hubs visible.</p>
 {% endif %}
 {% endblock %}
