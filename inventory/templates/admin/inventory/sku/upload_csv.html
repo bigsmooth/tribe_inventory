@@ -1,0 +1,14 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block content %}
+  <h1>Upload SKUs CSV</h1>
+  <p>Expected columns: <code>sku,name,barcode,low_stock_threshold</code></p>
+
+  <form method="post" enctype="multipart/form-data" style="margin-top:1rem;">
+    {% csrf_token %}
+    <input type="file" name="file" accept=".csv" required>
+    <button type="submit" class="default">Upload</button>
+    <a href="{% url 'admin:inventory_sku_changelist' %}" class="button" style="margin-left:8px;">Cancel</a>
+  </form>
+{% endblock %}

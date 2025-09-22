@@ -1,5 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
+
+{% if user.is_superuser %}
+<div style="margin: 12px 0; display:flex; gap:8px; flex-wrap:wrap;">
+  <a href="{% url 'admin:inventory_sku_changelist' %}" class="button">Admin: SKUs</a>
+  <a href="{% url 'admin:inventory_sku_upload_csv' %}" class="button default">Admin: Upload SKUs CSV</a>
+</div>
+{% endif %}
+
   <h1>Dashboard</h1>
 
   <!-- Friendly greeting -->
