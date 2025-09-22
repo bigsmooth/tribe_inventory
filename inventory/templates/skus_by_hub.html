@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}SKUs by Hub{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="mb-0">SKUs by Hub</h2>
+  <div>
+    <a href="{% url 'skus_upload' %}" class="btn btn-sm btn-outline-primary">Upload CSV</a>
+  </div>
+</div>
+
+<form method="get" action="{% url 'skus_by_hub' %}" class="mb-3 d-flex gap-2">
+  {{ filter_form.hub }}
+  <button class="btn btn-secondary">Go</button>
+</form>
+
+{% if hub %}
+  <h4 class="mt-2">Hub: {{ hub.name }}</h4>
+  <p class="text-muted">Total SKUs: {{ totals.sku_count }}</p>
+
+  {% if rows %}
+    <table class="table table-sm align-middle">
+      <thead>
+        <tr><th>SKU</th><th>Name</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for sku in rows %}
+          <tr>
+            <td><code>{{ sku.sku }}</code></td>
+            <td>{{ sku.name }}</td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-outline-secondary" href="{% url 'sku_assign' sku.id %}">Assign hubs</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="alert alert-info">No SKUs assigned to this hub yet.</div>
+  {% endif %}
+{% else %}
+  <div class="alert alert-secondary">Choose a hub to view assigned SKUs.</div>
+  <ul class="list-group">
+    {% for h in hubs %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <span>{{ h.name }}{% if h.city %} — <span class="text-muted">{{ h.city }}</span>{% endif %}</span>
+        <a class="btn btn-sm btn-outline-primary" href="{% url 'skus_by_hub_detail' h.id %}">Open</a>
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}
+{% endblock %}
